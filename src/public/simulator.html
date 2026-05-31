@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Simulador Pusher — WhatsApp</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: #f0f2f5;
+        margin: 0;
+        padding: 2rem 1rem;
+        color: #181818;
+      }
+      .container {
+        max-width: 560px;
+        margin: 0 auto;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 12px rgb(0 0 0 / 10%);
+        padding: 1.5rem;
+      }
+      h1 { margin: 0 0 0.25rem; font-size: 1.35rem; }
+      .subtitle { color: #666; font-size: 0.875rem; margin-bottom: 1.25rem; }
+      label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.25rem; }
+      input, select, textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        font: inherit;
+        margin-bottom: 1rem;
+      }
+      textarea { min-height: 90px; resize: vertical; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+      .info {
+        background: #eef6ff;
+        border: 1px solid #b8d4f0;
+        border-radius: 4px;
+        padding: 0.75rem;
+        font-size: 0.8rem;
+        margin-bottom: 1rem;
+        word-break: break-all;
+      }
+      .info strong { display: block; margin-bottom: 0.25rem; }
+      button {
+        width: 100%;
+        padding: 0.65rem;
+        background: #e55015;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:hover { background: #c73800; }
+      button:disabled { opacity: 0.6; cursor: not-allowed; }
+      .status {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        display: none;
+      }
+      .status.ok { display: block; background: #e0fbd6; border: 1px solid #a8d9a0; }
+      .status.err { display: block; background: #fde8e8; border: 1px solid #f0a0a0; }
+      .badge {
+        display: inline-block;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        background: #eee;
+        margin-right: 0.35rem;
+      }
+      .badge.live { background: #06b148; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Simulador Pusher</h1>
+      <p class="subtitle">
+        Publica mensagens em tempo real no canal do chat (como o webhook Twilio faria).
+      </p>
+
+      <div class="info" id="channelInfo">Carregando...</div>
+
+      <form id="publishForm">
+        <label for="threadId">Thread ID</label>
+        <input id="threadId" name="threadId" required />
+
+        <div class="row">
+          <div>
+            <label for="direction">Direção</label>
+            <select id="direction" name="direction">
+              <option value="inbound">Inbound (cliente → Loft)</option>
+              <option value="outbound">Outbound (Loft → cliente)</option>
+            </select>
+          </div>
+          <div>
+            <label for="clientName">Cliente</label>
+            <input id="clientName" readonly />
+          </div>
+        </div>
+
+        <label for="body">Mensagem</label>
+        <textarea id="body" name="body" placeholder="Digite a mensagem..." required></textarea>
+
+        <button type="submit" id="submitBtn">Publicar mensagem</button>
+      </form>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      const API = window.location.origin;
+
+      async function loadConfig() {
+        const res = await fetch(`${API}/api/simulator/config`);
+        const data = await res.json();
+        document.getElementById('threadId').value = data.threadId;
+        document.getElementById('clientName').value = data.clientName;
+        document.getElementById('channelInfo').innerHTML = `
+          <strong>Canal Pusher</strong>
+          <code>${data.channel}</code><br><br>
+          <span class="badge ${data.channelSubscribers > 0 ? 'live' : ''}">${data.channelSubscribers} inscrito(s) no canal</span>
+          <span class="badge">${data.connectedClients} cliente(s) WebSocket</span><br><br>
+          Eventos: <code>${data.pusherEventInbound}</code> (inbound),
+          <code>${data.pusherEventOutbound}</code> (outbound)
+        `;
+        return data;
+      }
+
+      document.getElementById('publishForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const status = document.getElementById('status');
+        btn.disabled = true;
+        status.className = 'status';
+        status.textContent = '';
+
+        try {
+          const res = await fetch(`${API}/api/simulator/publish`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              threadId: document.getElementById('threadId').value,
+              direction: document.getElementById('direction').value,
+              body: document.getElementById('body').value,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Erro ao publicar');
+
+          status.className = 'status ok';
+          status.innerHTML = `
+            Mensagem publicada! Evento <code>${data.pusherEvent}</code><br>
+            ${data.subscribersNotified} cliente(s) notificado(s) via WebSocket.<br>
+            SID: <code>${data.message.sid}</code>
+          `;
+          document.getElementById('body').value = '';
+          await loadConfig();
+        } catch (err) {
+          status.className = 'status err';
+          status.textContent = err.message;
+        } finally {
+          btn.disabled = false;
+        }
+      });
+
+      loadConfig();
+      setInterval(loadConfig, 5000);
+    </script>
+  </body>
+</html>
