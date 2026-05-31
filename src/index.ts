@@ -33,6 +33,7 @@ server.listen(PORT, () => {
   console.log(`WhatsApp conversation API running at http://localhost:${PORT}`);
   console.log(`  GET  /api/threads/:threadId/conversation`);
   console.log(`  GET  /api/threads/:threadId/messages`);
+  console.log(`  POST /api/threads/:threadId/messages/text`);
   console.log(`  GET  /simulator  (Pusher message publisher UI)`);
   console.log(`  POST /api/simulator/publish`);
   console.log(`  WS   ws://localhost:${PORT}/ws`);
