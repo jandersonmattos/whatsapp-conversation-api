@@ -1,6 +1,12 @@
 import type { ConversationResponse, TwilioMessage, TwilioMessagesResponse } from '../types.js';
-import type { WhatsAppEventPayload } from '../types/pusher.js';
-import { buildPusherChannel, PUSHER_EVENT_INBOUND, PUSHER_EVENT_OUTBOUND } from '../utils/channelUtils.js';
+import type { OmniTalkPushPayload, WhatsAppEventPayload } from '../types/pusher.js';
+import {
+  buildOmniTalkChannel,
+  buildPusherChannel,
+  OMNITALK_EVENT_INBOUND,
+  PUSHER_EVENT_INBOUND,
+  PUSHER_EVENT_OUTBOUND,
+} from '../utils/channelUtils.js';
 import { broadcastToChannel } from '../websocket/pusherSimulator.js';
 
 export const DEFAULT_THREAD_ID = 'thread-demo-001';
@@ -144,8 +150,10 @@ export function getConversationByThreadId(threadId: string): ConversationRespons
   const lastMessage = twilioMessages[twilioMessages.length - 1];
   const lastDate = new Date(lastMessage.date_sent).toISOString();
 
+  const resolvedThreadId = threadId || DEFAULT_THREAD_ID;
   return {
-    Id: threadId || DEFAULT_THREAD_ID,
+    Id: resolvedThreadId,
+    Thread_Id__c: resolvedThreadId,
     Status__c: 'In Progress',
     Phone__c: CUSTOMER_PHONE,
     LoftPhone__c: LOFT_PHONE,
@@ -173,14 +181,19 @@ export function getMessagesByThreadId(_threadId: string): TwilioMessagesResponse
 export function getSimulatorDefaults() {
   const conversation = getConversationByThreadId(DEFAULT_THREAD_ID);
   const channel = buildPusherChannel(conversation.Phone__c, conversation.LoftPhone__c);
+  const ownerId = conversation.OwnerId__c ?? 'user-agent-001';
+  const omnitalkChannel = buildOmniTalkChannel(ownerId);
   return {
     threadId: DEFAULT_THREAD_ID,
     customerPhone: conversation.Phone__c,
     loftPhone: conversation.LoftPhone__c,
     clientName: conversation.ClientName,
+    ownerId,
     channel,
+    omnitalkChannel,
     pusherEventInbound: PUSHER_EVENT_INBOUND,
     pusherEventOutbound: PUSHER_EVENT_OUTBOUND,
+    omnitalkEventInbound: OMNITALK_EVENT_INBOUND,
   };
 }
 
@@ -196,6 +209,52 @@ export interface PublishMessageResult {
   channel: string;
   pusherEvent: string;
   subscribersNotified: number;
+  omnitalkChannel?: string;
+  omnitalkSubscribersNotified?: number;
+}
+
+function buildOmniTalkInboundPayload(
+  conversation: ConversationResponse,
+  threadId: string,
+  messageBody: string,
+): OmniTalkPushPayload {
+  const now = new Date().toISOString();
+  return {
+    notifications: [
+      {
+        id: threadId,
+        threadId,
+        sourceId: threadId,
+        title: conversation.ClientName,
+        description: messageBody.slice(0, 43),
+        type: 'Nova Mensagem',
+        status: 'unreaded',
+        isMuted: false,
+        isDeleted: false,
+        hasEmail: false,
+        lastModifiedDate: now,
+        lastViewedDate: null,
+        ownerName: 'Agente',
+      },
+    ],
+    timestamp: now,
+  };
+}
+
+function publishOmniTalkInbound(
+  conversation: ConversationResponse,
+  threadId: string,
+  messageBody: string,
+): number {
+  const ownerId = conversation.OwnerId__c ?? 'user-agent-001';
+  const omnitalkChannel = buildOmniTalkChannel(ownerId);
+  const payload = buildOmniTalkInboundPayload(conversation, threadId, messageBody);
+
+  return broadcastToChannel({
+    event: OMNITALK_EVENT_INBOUND,
+    channel: omnitalkChannel,
+    data: payload,
+  });
 }
 
 export function publishMessage(input: PublishMessageInput): PublishMessageResult {
@@ -215,11 +274,25 @@ export function publishMessage(input: PublishMessageInput): PublishMessageResult
     data: eventPayload,
   });
 
+  let omnitalkChannel: string | undefined;
+  let omnitalkSubscribersNotified: number | undefined;
+
+  if (input.direction === 'inbound') {
+    omnitalkChannel = buildOmniTalkChannel(conversation.OwnerId__c ?? 'user-agent-001');
+    omnitalkSubscribersNotified = publishOmniTalkInbound(
+      conversation,
+      input.threadId,
+      input.body,
+    );
+  }
+
   return {
     message: twilioMessage,
     event: eventPayload,
     channel,
     pusherEvent,
     subscribersNotified,
+    omnitalkChannel,
+    omnitalkSubscribersNotified,
   };
 }

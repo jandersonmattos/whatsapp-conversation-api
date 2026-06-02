@@ -32,5 +32,10 @@ threadsRouter.post('/:threadId/messages/text', (req, res) => {
     body: message.trim(),
   });
 
-  res.json({ ok: true, sid: result.message.sid, subscribersNotified: result.subscribersNotified });
+  res.json({
+    ok: true,
+    sid: result.message.sid,
+    subscribersNotified: result.subscribersNotified,
+    omnitalkSubscribersNotified: result.omnitalkSubscribersNotified ?? 0,
+  });
 });

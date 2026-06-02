@@ -122,12 +122,15 @@
         document.getElementById('threadId').value = data.threadId;
         document.getElementById('clientName').value = data.clientName;
         document.getElementById('channelInfo').innerHTML = `
-          <strong>Canal Pusher</strong>
-          <code>${data.channel}</code><br><br>
-          <span class="badge ${data.channelSubscribers > 0 ? 'live' : ''}">${data.channelSubscribers} inscrito(s) no canal</span>
+          <strong>Canal chat (WhatsApp)</strong>
+          <code>${data.channel}</code><br>
+          <span class="badge ${data.channelSubscribers > 0 ? 'live' : ''}">${data.channelSubscribers} inscrito(s)</span><br><br>
+          <strong>Canal OmniTalk</strong>
+          <code>${data.omnitalkChannel}</code><br>
+          <span class="badge ${data.omnitalkChannelSubscribers > 0 ? 'live' : ''}">${data.omnitalkChannelSubscribers} inscrito(s)</span>
           <span class="badge">${data.connectedClients} cliente(s) WebSocket</span><br><br>
-          Eventos: <code>${data.pusherEventInbound}</code> (inbound),
-          <code>${data.pusherEventOutbound}</code> (outbound)
+          Chat: <code>${data.pusherEventInbound}</code> / <code>${data.pusherEventOutbound}</code><br>
+          OmniTalk (só inbound): <code>${data.omnitalkEventInbound}</code>
         `;
         return data;
       }
@@ -154,9 +157,12 @@
           if (!res.ok) throw new Error(data.error || 'Erro ao publicar');
 
           status.className = 'status ok';
+          const omniLine = data.omnitalkChannel
+            ? `<br>OmniTalk: ${data.omnitalkSubscribersNotified ?? 0} inscrito(s) em <code>${data.omnitalkChannel}</code>`
+            : '';
           status.innerHTML = `
             Mensagem publicada! Evento <code>${data.pusherEvent}</code><br>
-            ${data.subscribersNotified} cliente(s) notificado(s) via WebSocket.<br>
+            ${data.subscribersNotified} cliente(s) no canal do chat.${omniLine}<br>
             SID: <code>${data.message.sid}</code>
           `;
           document.getElementById('body').value = '';

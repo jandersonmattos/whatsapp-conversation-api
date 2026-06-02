@@ -1,5 +1,6 @@
 export interface ConversationResponse {
   Id: string;
+  Thread_Id__c: string;
   Status__c: 'In Progress' | 'Closed';
   Phone__c: string;
   LoftPhone__c: string;

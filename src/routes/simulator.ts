@@ -13,6 +13,7 @@ simulatorRouter.get('/config', (_req, res) => {
     ...defaults,
     connectedClients: getConnectedClientCount(),
     channelSubscribers: getSubscriptionCount(defaults.channel),
+    omnitalkChannelSubscribers: getSubscriptionCount(defaults.omnitalkChannel),
   });
 });
 
@@ -42,5 +43,8 @@ simulatorRouter.post('/publish', (req, res) => {
     ...result,
     connectedClients: getConnectedClientCount(),
     channelSubscribers: getSubscriptionCount(result.channel),
+    omnitalkChannelSubscribers: result.omnitalkChannel
+      ? getSubscriptionCount(result.omnitalkChannel)
+      : 0,
   });
 });

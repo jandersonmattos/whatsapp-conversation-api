@@ -11,7 +11,29 @@ export interface WhatsAppEventPayload {
 export interface PusherBroadcastEnvelope {
   event: string;
   channel: string;
-  data: WhatsAppEventPayload;
+  data: WhatsAppEventPayload | OmniTalkPushPayload;
+}
+
+export interface OmniTalkNotificationItem {
+  id: string;
+  /** External conversation thread id (maps to WhatsappConversation__c.Thread_Id__c) */
+  threadId: string;
+  sourceId: string;
+  title: string;
+  description: string;
+  type: string;
+  status: string;
+  isMuted: boolean;
+  isDeleted: boolean;
+  hasEmail: boolean;
+  lastModifiedDate: string;
+  lastViewedDate?: string | null;
+  ownerName?: string;
+}
+
+export interface OmniTalkPushPayload {
+  notifications: OmniTalkNotificationItem[];
+  timestamp: string;
 }
 
 export interface WsClientMessage {
