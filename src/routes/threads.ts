@@ -17,6 +17,10 @@ threadsRouter.get('/:threadId/messages', (req, res) => {
   res.json(getMessagesByThreadId(threadId));
 });
 
+threadsRouter.patch('/:threadId/read', (req, res) => {
+  res.json({ ok: true });
+});
+
 threadsRouter.post('/:threadId/messages/text', (req, res) => {
   const { threadId } = req.params;
   const { message } = req.body ?? {};
